@@ -5,13 +5,19 @@
 # override for SBOX-first local builds: --build-arg BASE_REGISTRY=hmctssbox.azurecr.io
 ARG BASE_REGISTRY=hmctsprod.azurecr.io
 
-# ---- Builder: install telemetry packages (distroless has no pip) ----
-# renovate: datasource=pypi depName=azure-monitor-opentelemetry
-ARG AZURE_MONITOR_OTEL_VERSION=1.8.8
 FROM python:3.13-slim-trixie AS builder
-ARG AZURE_MONITOR_OTEL_VERSION
-RUN pip install --no-cache-dir --target=/otel \
-    "azure-monitor-opentelemetry==${AZURE_MONITOR_OTEL_VERSION}"
+# uv pinned by version (Renovate-managed)
+COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /uvx /bin/
+ENV UV_MALWARE_CHECK=1
+WORKDIR /build
+COPY requirements.txt .
+RUN uv pip install \
+      --no-cache \
+      --target=/otel \
+      --python /usr/local/bin/python3.13 \
+      --require-hashes \
+      --index-url https://pypi.org/simple \
+      -r requirements.txt
 
 # ---- Final: distroless Python 3.13 ----
 # hadolint ignore=DL3007

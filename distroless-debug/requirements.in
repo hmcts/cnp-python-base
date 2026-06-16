@@ -1,0 +1,4 @@
+# Top-level telemetry dependency. Transitive deps are pinned + hashed in requirements.txt
+# (regenerate with `make lock`). Renovate bumps this line.
+# renovate: datasource=pypi depName=azure-monitor-opentelemetry
+azure-monitor-opentelemetry==1.8.8
