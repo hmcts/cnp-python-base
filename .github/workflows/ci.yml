@@ -25,7 +25,7 @@ jobs:
       - name: "Az CLI login"
         uses: azure/login@v3
         with:
-          client-id: c6a3a50b-762f-4b4f-b7ec-f1d84be20cef # DTS Platform Operations GitHub Actions ACR Publisher 1
+          client-id: 0c90bba4-bee6-42d1-8398-dedede1319d1 # DTS Platform Operations GitHub Actions ACR Publisher 2
           tenant-id: 531ff96d-0ae9-462a-8d2d-bec7c0b42082 # HMCTS.NET
           allow-no-subscriptions: true
 
