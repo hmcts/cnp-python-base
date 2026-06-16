@@ -1,3 +1,6 @@
 *.pyc
 __pycache__/
 .DS_Store
+
+# Internal planning/design docs - keep out of the public repo
+docs/superpowers/

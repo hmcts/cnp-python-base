@@ -2,31 +2,24 @@ name: cd
 
 on:
   workflow_dispatch:
-    inputs:
-      target:
-        description: "Registries to publish to"
-        type: choice
-        options: [both, sbox, prod]
-        default: both
   push:
     branches:
       - main
   schedule:
-    - cron: "0 0 * * 2"
+    - cron: "0 0 * * 2"   # weekly, Tuesday 00:00 UTC
 
 jobs:
   main:
     runs-on: ubuntu-24.04
     permissions:
-      id-token: write
+      id-token: write   # OIDC login to Azure
+      contents: read    # least-privilege for actions/checkout
     strategy:
       matrix:
         type: [distroless, distroless-debug]
     env:
       PYTHON_VERSION: "3.13"
-      PROD_ACR: hmctsprod.azurecr.io
       SBOX_ACR: hmctssbox.azurecr.io
-      TARGET: ${{ github.event.inputs.target || 'both' }}
     steps:
       - name: Checkout Source
         uses: actions/checkout@v6
@@ -49,8 +42,8 @@ jobs:
       - name: Set up QEMU for Docker
         uses: docker/setup-qemu-action@v4
 
-      - name: "ACR Login - HMCTSPROD"
-        run: az acr login --name hmctsprod
+      - name: "ACR Login - HMCTSSBOX"
+        run: az acr login --name hmctssbox
 
       - name: "Build amd64 image and smoke test (pre-publish gate)"
         uses: docker/build-push-action@v7
@@ -58,29 +51,19 @@ jobs:
           context: ./${{ matrix.type }}
           load: true
           platforms: linux/amd64
+          build-args: |
+            BASE_REGISTRY=hmctssbox.azurecr.io
           tags: base/python:cd-${{ matrix.type }}
 
       - name: "Smoke test"
         run: ./test/smoke-test.sh base/python:cd-${{ matrix.type }}
 
-      - name: "ACR Login - HMCTSSBOX"
-        if: env.TARGET == 'both' || env.TARGET == 'sbox'
-        run: az acr login --name hmctssbox
-
       - name: "Build and Push - SBOX - ${{ matrix.type }}"
-        if: env.TARGET == 'both' || env.TARGET == 'sbox'
         uses: docker/build-push-action@v7
         with:
           context: ./${{ matrix.type }}
           push: true
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            BASE_REGISTRY=hmctssbox.azurecr.io
           tags: ${{ env.SBOX_ACR }}/base/python:${{ env.PYTHON_VERSION }}-${{ matrix.type }}
-
-      - name: "Build and Push - PROD - ${{ matrix.type }}"
-        if: env.TARGET == 'both' || env.TARGET == 'prod'
-        uses: docker/build-push-action@v7
-        with:
-          context: ./${{ matrix.type }}
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ env.PROD_ACR }}/base/python:${{ env.PYTHON_VERSION }}-${{ matrix.type }}

@@ -10,13 +10,13 @@ jobs:
   main:
     runs-on: ubuntu-24.04
     permissions:
-      id-token: write
+      id-token: write   # OIDC login to Azure
+      contents: read    # least-privilege for actions/checkout
     strategy:
       matrix:
         type: [distroless, distroless-debug]
     env:
       PYTHON_VERSION: "3.13"
-      PROD_ACR: hmctsprod.azurecr.io
       SBOX_ACR: hmctssbox.azurecr.io
     steps:
       - name: Checkout Source
@@ -40,9 +40,7 @@ jobs:
       - name: Set up QEMU for Docker
         uses: docker/setup-qemu-action@v4
 
-      - name: "ACR Login - HMCTSPROD"
-        run: az acr login --name hmctsprod
-
+      # SBOX-first: pull the base image from and publish to hmctssbox only. No prod.
       - name: "ACR Login - HMCTSSBOX"
         run: az acr login --name hmctssbox
 
@@ -52,6 +50,8 @@ jobs:
           context: ./${{ matrix.type }}
           load: true
           platforms: linux/amd64
+          build-args: |
+            BASE_REGISTRY=hmctssbox.azurecr.io
           tags: base/python:ci-${{ matrix.type }}
 
       - name: "Smoke test"
@@ -63,4 +63,6 @@ jobs:
           context: ./${{ matrix.type }}
           push: true
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            BASE_REGISTRY=hmctssbox.azurecr.io
           tags: ${{ env.SBOX_ACR }}/base/python:pr-${{ env.PYTHON_VERSION }}-${{ matrix.type }}
