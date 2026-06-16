@@ -26,24 +26,54 @@ from `requirements.in`) and updated by Renovate with a 7-day cooldown — see **
 
 ## Usage
 
+Simple app (no third-party dependencies):
+
 ```dockerfile
 FROM hmctsprod.azurecr.io/base/python:3.13-distroless
-COPY --chown=hmcts:hmcts . /opt/app/
+COPY . /opt/app/
 CMD ["myapp.py"]            # or ["-m", "myapp"] / ["-m", "gunicorn", "myapp:app"]
+```
+
+App with dependencies — install them in a build stage and copy them in (the distroless
+image has no `pip` at runtime):
+
+```dockerfile
+# ---- Build stage: install your dependencies ----
+FROM python:3.13-slim-trixie AS build
+WORKDIR /build
+COPY requirements.txt .
+RUN pip install --no-cache-dir --target=/build/deps -r requirements.txt
+
+# ---- Final stage: the HMCTS distroless Python base ----
+FROM hmctsprod.azurecr.io/base/python:3.13-distroless
+COPY --from=build /build/deps /opt/app/deps
+COPY . /opt/app/
+# Keep /opt/otel on PYTHONPATH so the App Insights bootstrap still loads.
+ENV PYTHONPATH=/opt/app/deps:/opt/otel
+CMD ["myapp.py"]
 ```
 
 Provide `APPLICATIONINSIGHTS_CONNECTION_STRING` in the app's environment to enable telemetry.
 
+> **Note:** the base image sets `PYTHONPATH=/opt/otel` (where the telemetry bootstrap lives).
+> If you set `PYTHONPATH` yourself, **include `/opt/otel`** or the zero-code App Insights setup
+> won't load.
+
 ## Local development
 
 ```bash
-az acr login --name hmctsprod   # to pull the base image (or hmctssbox for sbox-first)
-make test                       # build both variants and run smoke tests
-# For SBOX-first local builds, pull the base from the sandbox registry:
-make test BASE_REGISTRY=hmctssbox.azurecr.io
+az acr login --name hmctssbox    # to pull the base image (use hmctsprod for the prod base)
 
-# Regenerate the hash-pinned dependency lock (7-day cooldown), synced to both variants:
-make lock
+# Build + smoke-test a variant (override BASE_REGISTRY to choose the base registry):
+docker buildx build --load --build-arg BASE_REGISTRY=hmctssbox.azurecr.io \
+  -t base/python:3.13-distroless distroless/
+./test/smoke-test.sh base/python:3.13-distroless
+
+# Regenerate the hash-pinned lock (7-day cooldown) and sync both variants:
+CUTOFF=$(python3 -c "import datetime; print((datetime.date.today() - datetime.timedelta(days=7)).isoformat())")
+docker run --rm -v "$PWD/distroless":/work -w /work python:3.13-slim-trixie \
+  sh -c "pip install -q uv && uv pip compile --generate-hashes --exclude-newer $CUTOFF requirements.in -o requirements.txt"
+cp distroless/requirements.in distroless/requirements.txt distroless-debug/
 ```
 
 ## Supply chain
@@ -60,7 +90,7 @@ Python dependencies are hardened against supply-chain attacks:
   release is never adopted immediately.
 - **Malware check** — `UV_MALWARE_CHECK=1` blocks known-malicious packages before any code runs.
 
-To change the pinned version, bump `requirements.in` (or let Renovate do it) and run `make lock`.
+To change the pinned version, bump `requirements.in` (or let Renovate do it) and regenerate the lock (see **Local development** above).
 
 ## External sources (egress allowlist)
 

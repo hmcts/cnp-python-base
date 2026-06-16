@@ -32,7 +32,6 @@ ENV PYTHONPATH=/opt/otel
 COPY group /etc/group
 COPY passwd /etc/passwd
 
-# Application directory.
 COPY --chown=hmcts:hmcts app/ /opt/app/
 WORKDIR /opt/app
 USER hmcts
