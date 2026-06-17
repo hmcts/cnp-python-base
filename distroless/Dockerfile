@@ -6,10 +6,10 @@
 ARG BASE_REGISTRY=hmctsprod.azurecr.io
 
 # ---- Builder: install telemetry deps with uv from the committed uv.lock ----
-# Supply-chain hardening: uv sync --frozen installs the exact committed lock (every
-# package + hash pinned in uv.lock) with no re-resolution. The 7-day cooldown is applied
-# when the lock is generated (from [tool.uv] exclude-newer in pyproject.toml) and UV_MALWARE_CHECK
-# blocks known-bad packages before install.
+# Supply-chain hardening: uv sync --locked installs the exact committed lock (every
+# package + hash pinned in uv.lock) and fails the build if uv.lock is out of sync with
+# pyproject.toml. The 7-day cooldown comes from [tool.uv] exclude-newer in pyproject.toml,
+# and UV_MALWARE_CHECK blocks known-bad packages before install.
 FROM python:3.13-slim-trixie AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /uvx /bin/
 ENV UV_MALWARE_CHECK=1 \
@@ -17,7 +17,7 @@ ENV UV_MALWARE_CHECK=1 \
     UV_LINK_MODE=copy
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --python /usr/local/bin/python3.13
+RUN uv sync --locked --no-dev --python /usr/local/bin/python3.13
 
 # ---- Final: distroless Python 3.13 ----
 # hadolint ignore=DL3007

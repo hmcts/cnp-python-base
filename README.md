@@ -36,7 +36,7 @@ FROM python:3.13-slim-trixie AS deps
 COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /bin/
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --locked --no-dev --no-install-project
 
 # Your app on the HMCTS base
 FROM hmctsprod.azurecr.io/base/python:3.13-distroless
@@ -56,7 +56,7 @@ Set `APPLICATIONINSIGHTS_CONNECTION_STRING` in the app's environment to enable t
 
 *(The rest is for working on this repo — not needed to consume the image.)*
 
-Two variants live under `distroless/` and `distroless-debug/` (identical bar the base tag). Dependencies are managed with [uv](https://docs.astral.sh/uv/): `pyproject.toml` declares them and `uv.lock` pins every package (incl. transitive) with SHA256 hashes. The build installs the exact lock with `uv sync --frozen` (no re-resolution). Supply-chain hardening: a 7-day cooldown (`exclude-newer = "7 days"` under `[tool.uv]` in `pyproject.toml`, applied by every `uv lock`, plus Renovate `minimumReleaseAge`) and `UV_MALWARE_CHECK=1`.
+Two variants live under `distroless/` and `distroless-debug/` (identical bar the base tag). Dependencies are managed with [uv](https://docs.astral.sh/uv/): `pyproject.toml` declares them and `uv.lock` pins every package (incl. transitive) with SHA256 hashes. The build installs the exact lock with `uv sync --locked`, which also fails the build if `uv.lock` has drifted from `pyproject.toml`. Supply-chain hardening: a 7-day cooldown (`exclude-newer = "7 days"` under `[tool.uv]` in `pyproject.toml`, applied by every `uv lock`, plus Renovate `minimumReleaseAge`) and `UV_MALWARE_CHECK=1`.
 
 ```bash
 az acr login --name hmctssbox
