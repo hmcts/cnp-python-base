@@ -55,6 +55,20 @@ jobs:
       - name: "Smoke test"
         run: ./test/smoke-test.sh base/python:cd-${{ matrix.type }}
 
+      # SBOX first, then PROD — the prod push only runs if the SBOX push succeeded.
+      ###################################################
+      # HMCTSSBOX ACR - release
+      ###################################################
+      - name: "Build and Push - SBOX - ${{ matrix.type }}"
+        uses: docker/build-push-action@v7
+        with:
+          context: ./${{ matrix.type }}
+          push: true
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            BASE_REGISTRY=${{ env.SBOX_ACR }}
+          tags: ${{ env.SBOX_ACR }}/base/python:${{ env.PYTHON_VERSION }}-${{ matrix.type }}
+
       ###################################################
       # HMCTSPROD ACR - release (default branch only)
       ###################################################
@@ -71,16 +85,3 @@ jobs:
           build-args: |
             BASE_REGISTRY=${{ env.PROD_ACR }}
           tags: ${{ env.PROD_ACR }}/base/python:${{ env.PYTHON_VERSION }}-${{ matrix.type }}
-
-      ###################################################
-      # HMCTSSBOX ACR - release
-      ###################################################
-      - name: "Build and Push - SBOX - ${{ matrix.type }}"
-        uses: docker/build-push-action@v7
-        with:
-          context: ./${{ matrix.type }}
-          push: true
-          platforms: linux/amd64,linux/arm64
-          build-args: |
-            BASE_REGISTRY=${{ env.SBOX_ACR }}
-          tags: ${{ env.SBOX_ACR }}/base/python:${{ env.PYTHON_VERSION }}-${{ matrix.type }}
