@@ -19,6 +19,7 @@ jobs:
       PYTHON_VERSION: "3.13"
       PROD_ACR: hmctsprod.azurecr.io
       SBOX_ACR: hmctssbox.azurecr.io
+      PR_NUM: ${{ github.event.pull_request.number || github.run_number }}
     steps:
       - name: Checkout Source
         uses: actions/checkout@v6
@@ -62,7 +63,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             BASE_REGISTRY=${{ env.SBOX_ACR }}
-          tags: ${{ env.SBOX_ACR }}/base/python:pr-${{ env.PYTHON_VERSION }}-${{ matrix.type }}
+          tags: ${{ env.SBOX_ACR }}/base/python:pr-${{ env.PR_NUM }}-${{ env.PYTHON_VERSION }}-${{ matrix.type }}
 
       - name: "ACR Login - HMCTSPROD"
         run: az acr login --name hmctsprod
@@ -75,4 +76,4 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             BASE_REGISTRY=${{ env.PROD_ACR }}
-          tags: ${{ env.PROD_ACR }}/base/python:pr-${{ env.PYTHON_VERSION }}-${{ matrix.type }}
+          tags: ${{ env.PROD_ACR }}/base/python:pr-${{ env.PR_NUM }}-${{ env.PYTHON_VERSION }}-${{ matrix.type }}
