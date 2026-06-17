@@ -1,0 +1,16 @@
+name: Keep scheduled jobs running
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"
+
+# Prevent scheduled jobs being disabled after 60 days
+jobs:
+  keepalive:
+    name: Keep scheduled jobs running
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: 'Keep workflows alive'
+        uses: liskin/gh-workflow-keepalive@v1

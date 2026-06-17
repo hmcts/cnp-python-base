@@ -1,0 +1,15 @@
+[project]
+name = "cnp-python-base"
+version = "0.0.0"
+description = "Telemetry dependencies baked into the HMCTS distroless Python base image."
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    # renovate: datasource=pypi depName=azure-monitor-opentelemetry
+    "azure-monitor-opentelemetry==1.8.8",
+]
+
+# This project only manages dependencies; it is not an installable package.
+[tool.uv]
+package = false
+# Supply-chain cooldown: never resolve to packages published in the last 7 days.
+exclude-newer = "7 days"

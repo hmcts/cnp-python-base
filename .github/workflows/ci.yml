@@ -1,0 +1,63 @@
+name: ci
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  main:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write   # OIDC login to Azure
+      contents: read    # least-privilege for actions/checkout
+    strategy:
+      matrix:
+        type: [distroless, distroless-debug]
+    env:
+      PYTHON_VERSION: "3.13"
+      SBOX_ACR: hmctssbox.azurecr.io
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v6
+
+      - name: "Az CLI login"
+        uses: azure/login@v3
+        with:
+          client-id: 0c90bba4-bee6-42d1-8398-dedede1319d1 # DTS Platform Operations GitHub Actions ACR Publisher 2
+          tenant-id: 531ff96d-0ae9-462a-8d2d-bec7c0b42082 # HMCTS.NET
+          allow-no-subscriptions: true
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Set up QEMU for Docker
+        uses: docker/setup-qemu-action@v4
+
+      # SBOX-first: pull the base image from and publish to hmctssbox only. No prod.
+      - name: "ACR Login - HMCTSSBOX"
+        run: az acr login --name hmctssbox
+
+      - name: "Build amd64 image and smoke test"
+        uses: docker/build-push-action@v7
+        with:
+          context: ./${{ matrix.type }}
+          load: true
+          platforms: linux/amd64
+          build-args: |
+            BASE_REGISTRY=hmctssbox.azurecr.io
+          tags: base/python:ci-${{ matrix.type }}
+
+      - name: "Smoke test"
+        run: ./test/smoke-test.sh base/python:ci-${{ matrix.type }}
+
+      - name: "Build and Push PR image - SBOX - ${{ matrix.type }}"
+        uses: docker/build-push-action@v7
+        with:
+          context: ./${{ matrix.type }}
+          push: true
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            BASE_REGISTRY=hmctssbox.azurecr.io
+          tags: ${{ env.SBOX_ACR }}/base/python:pr-${{ env.PYTHON_VERSION }}-${{ matrix.type }}
