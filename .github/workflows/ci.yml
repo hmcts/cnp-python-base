@@ -17,7 +17,9 @@ jobs:
         type: [distroless, distroless-debug]
     env:
       PYTHON_VERSION: "3.13"
+      PROD_ACR: hmctsprod.azurecr.io
       SBOX_ACR: hmctssbox.azurecr.io
+      PR_NUM: ${{ github.event.pull_request.number || github.run_number }}
     steps:
       - name: Checkout Source
         uses: actions/checkout@v6
@@ -35,7 +37,7 @@ jobs:
       - name: Set up QEMU for Docker
         uses: docker/setup-qemu-action@v4
 
-      # SBOX-first: pull the base image from and publish to hmctssbox only. No prod.
+      # Pre-publish gate: build amd64 (from the SBOX base) and smoke test before any push.
       - name: "ACR Login - HMCTSSBOX"
         run: az acr login --name hmctssbox
 
@@ -46,12 +48,13 @@ jobs:
           load: true
           platforms: linux/amd64
           build-args: |
-            BASE_REGISTRY=hmctssbox.azurecr.io
+            BASE_REGISTRY=${{ env.SBOX_ACR }}
           tags: base/python:ci-${{ matrix.type }}
 
       - name: "Smoke test"
         run: ./test/smoke-test.sh base/python:ci-${{ matrix.type }}
 
+      # SBOX first, then PROD — the prod push only runs if the SBOX push succeeded.
       - name: "Build and Push PR image - SBOX - ${{ matrix.type }}"
         uses: docker/build-push-action@v7
         with:
@@ -59,5 +62,18 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           build-args: |
-            BASE_REGISTRY=hmctssbox.azurecr.io
-          tags: ${{ env.SBOX_ACR }}/base/python:pr-${{ env.PYTHON_VERSION }}-${{ matrix.type }}
+            BASE_REGISTRY=${{ env.SBOX_ACR }}
+          tags: ${{ env.SBOX_ACR }}/base/python:pr-${{ env.PR_NUM }}-${{ env.PYTHON_VERSION }}-${{ matrix.type }}
+
+      - name: "ACR Login - HMCTSPROD"
+        run: az acr login --name hmctsprod
+
+      - name: "Build and Push PR image - PROD - ${{ matrix.type }}"
+        uses: docker/build-push-action@v7
+        with:
+          context: ./${{ matrix.type }}
+          push: true
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            BASE_REGISTRY=${{ env.PROD_ACR }}
+          tags: ${{ env.PROD_ACR }}/base/python:pr-${{ env.PR_NUM }}-${{ env.PYTHON_VERSION }}-${{ matrix.type }}
