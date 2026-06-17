@@ -19,6 +19,7 @@ jobs:
         type: [distroless, distroless-debug]
     env:
       PYTHON_VERSION: "3.13"
+      PROD_ACR: hmctsprod.azurecr.io
       SBOX_ACR: hmctssbox.azurecr.io
     steps:
       - name: Checkout Source
@@ -37,6 +38,7 @@ jobs:
       - name: Set up QEMU for Docker
         uses: docker/setup-qemu-action@v4
 
+      # Pre-publish gate: build amd64 (from the SBOX base) and smoke test before any push.
       - name: "ACR Login - HMCTSSBOX"
         run: az acr login --name hmctssbox
 
@@ -47,12 +49,32 @@ jobs:
           load: true
           platforms: linux/amd64
           build-args: |
-            BASE_REGISTRY=hmctssbox.azurecr.io
+            BASE_REGISTRY=${{ env.SBOX_ACR }}
           tags: base/python:cd-${{ matrix.type }}
 
       - name: "Smoke test"
         run: ./test/smoke-test.sh base/python:cd-${{ matrix.type }}
 
+      ###################################################
+      # HMCTSPROD ACR - release (default branch only)
+      ###################################################
+      - name: "ACR Login - HMCTSPROD"
+        run: az acr login --name hmctsprod
+
+      - name: "Build and Push - PROD - ${{ matrix.type }}"
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v7
+        with:
+          context: ./${{ matrix.type }}
+          push: true
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            BASE_REGISTRY=${{ env.PROD_ACR }}
+          tags: ${{ env.PROD_ACR }}/base/python:${{ env.PYTHON_VERSION }}-${{ matrix.type }}
+
+      ###################################################
+      # HMCTSSBOX ACR - release
+      ###################################################
       - name: "Build and Push - SBOX - ${{ matrix.type }}"
         uses: docker/build-push-action@v7
         with:
@@ -60,5 +82,5 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           build-args: |
-            BASE_REGISTRY=hmctssbox.azurecr.io
+            BASE_REGISTRY=${{ env.SBOX_ACR }}
           tags: ${{ env.SBOX_ACR }}/base/python:${{ env.PYTHON_VERSION }}-${{ matrix.type }}

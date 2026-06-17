@@ -72,4 +72,4 @@ docker run --rm -v "$PWD/distroless":/work -w /work ghcr.io/astral-sh/uv:0.11.21
 cp distroless/pyproject.toml distroless/uv.lock distroless-debug/
 ```
 
-CI/CD (GitHub Actions) builds multi-arch and publishes to SBOX (PROD to follow). Build egress: PyPI, `ghcr.io` (uv), Docker Hub, the ACR, GitHub.
+CI/CD (GitHub Actions) builds multi-arch and publishes to SBOX and PROD (CI pushes `pr-` images to SBOX only; CD publishes release tags to both on merge to `main`). Build egress: PyPI, `ghcr.io` (uv), Docker Hub, the ACR, GitHub.
