@@ -11,3 +11,5 @@ dependencies = [
 # This project only manages dependencies; it is not an installable package.
 [tool.uv]
 package = false
+# Supply-chain cooldown: never resolve to packages published in the last 7 days.
+exclude-newer = "7 days"

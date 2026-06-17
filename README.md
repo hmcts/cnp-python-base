@@ -56,7 +56,7 @@ Set `APPLICATIONINSIGHTS_CONNECTION_STRING` in the app's environment to enable t
 
 *(The rest is for working on this repo — not needed to consume the image.)*
 
-Two variants live under `distroless/` and `distroless-debug/` (identical bar the base tag). Dependencies are managed with [uv](https://docs.astral.sh/uv/): `pyproject.toml` declares them and `uv.lock` pins every package (incl. transitive) with SHA256 hashes. The build installs the exact lock with `uv sync --frozen` (no re-resolution). Supply-chain hardening: a 7-day cooldown on the lock (`uv lock --exclude-newer` + Renovate `minimumReleaseAge`) and `UV_MALWARE_CHECK=1`.
+Two variants live under `distroless/` and `distroless-debug/` (identical bar the base tag). Dependencies are managed with [uv](https://docs.astral.sh/uv/): `pyproject.toml` declares them and `uv.lock` pins every package (incl. transitive) with SHA256 hashes. The build installs the exact lock with `uv sync --frozen` (no re-resolution). Supply-chain hardening: a 7-day cooldown (`exclude-newer = "7 days"` under `[tool.uv]` in `pyproject.toml`, applied by every `uv lock`, plus Renovate `minimumReleaseAge`) and `UV_MALWARE_CHECK=1`.
 
 ```bash
 az acr login --name hmctssbox
@@ -65,10 +65,10 @@ az acr login --name hmctssbox
 docker buildx build --load --build-arg BASE_REGISTRY=hmctssbox.azurecr.io -t base/python:3.13-distroless distroless/
 ./test/smoke-test.sh base/python:3.13-distroless
 
-# update dependencies: edit distroless/pyproject.toml, then regenerate the hash-pinned
-# lock with a 7-day cooldown and copy it to the debug variant (both share one lock)
-docker run --rm -v "$PWD/distroless":/work -w /work ghcr.io/astral-sh/uv:0.11.21-python3.13-trixie-slim \
-  sh -c 'uv lock --exclude-newer "$(date -u -d "7 days ago" "+%Y-%m-%dT%H:%M:%SZ")"'
+# update dependencies: edit distroless/pyproject.toml, then regenerate the lock (the
+# 7-day cooldown is applied automatically from [tool.uv] exclude-newer) and copy both
+# files to the debug variant (both variants share one lock)
+docker run --rm -v "$PWD/distroless":/work -w /work ghcr.io/astral-sh/uv:0.11.21-python3.13-trixie-slim uv lock
 cp distroless/pyproject.toml distroless/uv.lock distroless-debug/
 ```
 
