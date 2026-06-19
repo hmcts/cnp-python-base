@@ -14,7 +14,7 @@ Use `distroless` for production; `distroless-debug` adds a shell for troubleshoo
 ## Features
 
 - **Non-root by default** — runs as `hmcts` (uid 1000). Bind to ports **≥ 1024** (e.g. `8080`); `/opt/app` is writable by the app.
-- **Application Insights, zero app code** — set `APPLICATIONINSIGHTS_CONNECTION_STRING` and telemetry is configured at startup. Leave it unset and it's a no-op, so local dev is unaffected.
+- **Application Insights, zero app code** — set `APPLICATIONINSIGHTS_CONNECTION_STRING` (or point `APPLICATIONINSIGHTS_CONNECTION_STRING_FILE` at a file holding it) and telemetry is configured at startup. Leave both unset and it's a no-op, so local dev is unaffected.
 
 ## Usage
 
@@ -48,7 +48,24 @@ CMD ["myapp.py"]
 
 Generate `uv.lock` once with `uv lock` (in the dir with your `pyproject.toml`) and commit it.
 
-Set `APPLICATIONINSIGHTS_CONNECTION_STRING` in the app's environment to enable telemetry.
+### Application Insights
+
+Provide the **full connection string** (not the instrumentation key) and telemetry is configured at startup, resolved in priority order:
+
+1. `APPLICATIONINSIGHTS_CONNECTION_STRING` — the connection string directly.
+2. `APPLICATIONINSIGHTS_CONNECTION_STRING_FILE` — a path to a file containing it (read at startup).
+
+In HMCTS clusters the connection string lives in a key vault, so mount it as a file (keeping the secret out of git) and point the base image at that file:
+
+```yaml
+keyVaults:
+  <vault>:
+    secrets:
+      - name: <connection-string-secret>
+        alias: APPLICATIONINSIGHTS_CONNECTION_STRING   # mounts at /mnt/secrets/<vault>/APPLICATIONINSIGHTS_CONNECTION_STRING
+environment:
+  APPLICATIONINSIGHTS_CONNECTION_STRING_FILE: /mnt/secrets/<vault>/APPLICATIONINSIGHTS_CONNECTION_STRING
+```
 
 ---
 
