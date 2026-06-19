@@ -27,19 +27,22 @@ cs='InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=ht
 out="$(docker run --rm -e APPLICATIONINSIGHTS_CONNECTION_STRING="$cs" "$IMAGE" -c 'print("APP-RAN")' 2>&1)"
 echo "$out" | grep -q '^APP-RAN$' || { echo "FAIL: app did not run with telemetry:"; echo "$out"; exit 1; }
 echo "$out" | grep -qi "$ACTIVATION" || { echo "FAIL: telemetry did not activate:"; echo "$out"; exit 1; }
-echo "PASS: activated, app ran"
+echo "$out" | grep -qi "log namespace: app" || { echo "FAIL: default logger namespace not 'app':"; echo "$out"; exit 1; }
+echo "PASS: activated (default namespace 'app'), app ran"
 
-echo "== 5. Telemetry activates from APPLICATIONINSIGHTS_CONNECTION_STRING_FILE =="
+echo "== 5. File-based connection string + logger namespace =="
 csdir="$(mktemp -d)"
 printf '%s' "$cs" > "$csdir/APPLICATIONINSIGHTS_CONNECTION_STRING"
 chmod 755 "$csdir"; chmod 644 "$csdir/APPLICATIONINSIGHTS_CONNECTION_STRING"  # readable by the image's hmcts uid
 out="$(docker run --rm -v "$csdir":/mnt/secrets/ai:ro \
   -e APPLICATIONINSIGHTS_CONNECTION_STRING_FILE=/mnt/secrets/ai/APPLICATIONINSIGHTS_CONNECTION_STRING \
+  -e APPLICATIONINSIGHTS_LOGGER_NAMESPACE=cnp \
   "$IMAGE" -c 'import os; print("CS=" + os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING", "")); print("APP-RAN")' 2>&1)"
 rm -rf "$csdir"
 echo "$out" | grep -q '^APP-RAN$' || { echo "FAIL: app did not run with file-based telemetry:"; echo "$out"; exit 1; }
 echo "$out" | grep -qi "$ACTIVATION" || { echo "FAIL: telemetry did not activate from file:"; echo "$out"; exit 1; }
 echo "$out" | grep -qF "CS=$cs" || { echo "FAIL: env var not populated from file:"; echo "$out"; exit 1; }
-echo "PASS: activated from file, env populated, app ran"
+echo "$out" | grep -qi "log namespace: cnp" || { echo "FAIL: logger namespace not applied:"; echo "$out"; exit 1; }
+echo "PASS: activated from file, env populated, namespace applied, app ran"
 
 echo "ALL SMOKE TESTS PASSED: $IMAGE"
