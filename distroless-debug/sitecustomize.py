@@ -9,6 +9,9 @@ unset, it is read from the file named by ``APPLICATIONINSIGHTS_CONNECTION_STRING
 (e.g. a key vault secret mounted by the HMCTS Helm chart). If neither is set, it logs a
 notice and continues, so local development is unaffected. Telemetry setup must never
 break the application, so all errors are caught and logged rather than raised.
+
+Set ``APPLICATIONINSIGHTS_LOGGER_NAMESPACE`` to scope logging telemetry to a specific
+logger namespace and its children; unset collects from the root logger.
 """
 import os
 import sys
@@ -29,8 +32,16 @@ if _conn:
     try:
         from azure.monitor.opentelemetry import configure_azure_monitor
 
-        configure_azure_monitor()
-        print("hmcts: Application Insights configured via base image", file=sys.stderr)
+        _kwargs = {}
+        _logger_namespace = os.environ.get("APPLICATIONINSIGHTS_LOGGER_NAMESPACE")
+        if _logger_namespace:
+            _kwargs["logger_name"] = _logger_namespace
+        configure_azure_monitor(**_kwargs)
+        print(
+            "hmcts: Application Insights configured via base image "
+            f"(log namespace: {_logger_namespace or 'root'})",
+            file=sys.stderr,
+        )
     except Exception as exc:  # noqa: BLE001 - telemetry must never break the app
         print(f"hmcts: Application Insights setup skipped ({exc})", file=sys.stderr)
 else:

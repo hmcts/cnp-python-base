@@ -67,6 +67,10 @@ environment:
   APPLICATIONINSIGHTS_CONNECTION_STRING_FILE: /mnt/secrets/<vault>/APPLICATIONINSIGHTS_CONNECTION_STRING
 ```
 
+**Optional** (set via the chart `environment:` block):
+- `APPLICATIONINSIGHTS_LOGGER_NAMESPACE` — scope collected **logs** to a logger namespace and its children (e.g. your app's logger root); unset collects from the root logger.
+- `OTEL_SERVICE_NAME` — label telemetry with the service name (otherwise it shows as `unknown_service`).
+
 ---
 
 ## Maintaining this repo
