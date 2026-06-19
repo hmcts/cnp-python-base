@@ -10,8 +10,9 @@ unset, it is read from the file named by ``APPLICATIONINSIGHTS_CONNECTION_STRING
 notice and continues, so local development is unaffected. Telemetry setup must never
 break the application, so all errors are caught and logged rather than raised.
 
-Set ``APPLICATIONINSIGHTS_LOGGER_NAMESPACE`` to scope logging telemetry to a specific
-logger namespace and its children; unset collects from the root logger.
+Logging telemetry is collected from the ``APPLICATIONINSIGHTS_LOGGER_NAMESPACE`` logger
+namespace and its children; it defaults to ``app``. Set it to your app's logger root if
+different, or logs outside that namespace won't be collected.
 """
 import os
 import sys
@@ -32,14 +33,11 @@ if _conn:
     try:
         from azure.monitor.opentelemetry import configure_azure_monitor
 
-        _kwargs = {}
-        _logger_namespace = os.environ.get("APPLICATIONINSIGHTS_LOGGER_NAMESPACE")
-        if _logger_namespace:
-            _kwargs["logger_name"] = _logger_namespace
-        configure_azure_monitor(**_kwargs)
+        _logger_namespace = os.environ.get("APPLICATIONINSIGHTS_LOGGER_NAMESPACE", "app")
+        configure_azure_monitor(logger_name=_logger_namespace)
         print(
             "hmcts: Application Insights configured via base image "
-            f"(log namespace: {_logger_namespace or 'root'})",
+            f"(log namespace: {_logger_namespace})",
             file=sys.stderr,
         )
     except Exception as exc:  # noqa: BLE001 - telemetry must never break the app
