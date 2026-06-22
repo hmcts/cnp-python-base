@@ -12,7 +12,9 @@ break the application, so all errors are caught and logged rather than raised.
 
 Logging telemetry is collected from the ``APPLICATIONINSIGHTS_LOGGER_NAMESPACE`` logger
 namespace and its children; it defaults to ``uvicorn``. Set it to your app's logger root
-to collect that application's own logs instead.
+to collect that application's own logs instead. Kubernetes probe endpoints (health,
+readiness, liveness) are excluded from request tracing by default; override
+``OTEL_PYTHON_EXCLUDED_URLS`` to replace or extend that list.
 """
 import os
 import sys
@@ -33,6 +35,7 @@ if _conn:
     try:
         from azure.monitor.opentelemetry import configure_azure_monitor
 
+        os.environ.setdefault("OTEL_PYTHON_EXCLUDED_URLS", "health,readiness,liveness")
         _logger_namespace = os.environ.get("APPLICATIONINSIGHTS_LOGGER_NAMESPACE", "uvicorn")
         configure_azure_monitor(logger_name=_logger_namespace)
         print(

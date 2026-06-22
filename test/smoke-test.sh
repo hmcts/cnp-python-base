@@ -45,4 +45,11 @@ echo "$out" | grep -qF "CS=$cs" || { echo "FAIL: env var not populated from file
 echo "$out" | grep -qi "log namespace: cnp" || { echo "FAIL: logger namespace not applied:"; echo "$out"; exit 1; }
 echo "PASS: activated from file, env populated, namespace applied, app ran"
 
+echo "== 6. Probe endpoints excluded by default (overridable) =="
+out="$(docker run --rm -e APPLICATIONINSIGHTS_CONNECTION_STRING="$cs" "$IMAGE" -c 'import os; print("EXCLUDED=" + os.environ.get("OTEL_PYTHON_EXCLUDED_URLS", ""))' 2>&1)"
+echo "$out" | grep -qF "EXCLUDED=health,readiness,liveness" || { echo "FAIL: default excluded URLs not set:"; echo "$out"; exit 1; }
+out="$(docker run --rm -e APPLICATIONINSIGHTS_CONNECTION_STRING="$cs" -e OTEL_PYTHON_EXCLUDED_URLS=custom "$IMAGE" -c 'import os; print("EXCLUDED=" + os.environ.get("OTEL_PYTHON_EXCLUDED_URLS", ""))' 2>&1)"
+echo "$out" | grep -qF "EXCLUDED=custom" || { echo "FAIL: excluded URLs override not respected:"; echo "$out"; exit 1; }
+echo "PASS: probe endpoints excluded by default, override respected"
+
 echo "ALL SMOKE TESTS PASSED: $IMAGE"
