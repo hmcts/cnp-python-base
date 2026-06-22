@@ -11,8 +11,8 @@ notice and continues, so local development is unaffected. Telemetry setup must n
 break the application, so all errors are caught and logged rather than raised.
 
 Logging telemetry is collected from the ``APPLICATIONINSIGHTS_LOGGER_NAMESPACE`` logger
-namespace and its children; it defaults to ``app``. Set it to your app's logger root if
-different, or logs outside that namespace won't be collected.
+namespace and its children; it defaults to ``uvicorn``. Set it to your app's logger root
+to collect that application's own logs instead.
 """
 import os
 import sys
@@ -33,7 +33,7 @@ if _conn:
     try:
         from azure.monitor.opentelemetry import configure_azure_monitor
 
-        _logger_namespace = os.environ.get("APPLICATIONINSIGHTS_LOGGER_NAMESPACE", "app")
+        _logger_namespace = os.environ.get("APPLICATIONINSIGHTS_LOGGER_NAMESPACE", "uvicorn")
         configure_azure_monitor(logger_name=_logger_namespace)
         print(
             "hmcts: Application Insights configured via base image "

@@ -27,8 +27,8 @@ cs='InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=ht
 out="$(docker run --rm -e APPLICATIONINSIGHTS_CONNECTION_STRING="$cs" "$IMAGE" -c 'print("APP-RAN")' 2>&1)"
 echo "$out" | grep -q '^APP-RAN$' || { echo "FAIL: app did not run with telemetry:"; echo "$out"; exit 1; }
 echo "$out" | grep -qi "$ACTIVATION" || { echo "FAIL: telemetry did not activate:"; echo "$out"; exit 1; }
-echo "$out" | grep -qi "log namespace: app" || { echo "FAIL: default logger namespace not 'app':"; echo "$out"; exit 1; }
-echo "PASS: activated (default namespace 'app'), app ran"
+echo "$out" | grep -qi "log namespace: uvicorn" || { echo "FAIL: default logger namespace not 'uvicorn':"; echo "$out"; exit 1; }
+echo "PASS: activated (default namespace 'uvicorn'), app ran"
 
 echo "== 5. File-based connection string + logger namespace =="
 csdir="$(mktemp -d)"
