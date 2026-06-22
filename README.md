@@ -67,8 +67,11 @@ environment:
   APPLICATIONINSIGHTS_CONNECTION_STRING_FILE: /mnt/secrets/<vault>/APPLICATIONINSIGHTS_CONNECTION_STRING
 ```
 
-**Optional** (set via the chart `environment:` block):
-- `APPLICATIONINSIGHTS_LOGGER_NAMESPACE` — scope collected **logs** to a logger namespace and its children; **defaults to `app`**. If your app's loggers aren't rooted at `app` (check with `grep -rn getLogger`), set this to the correct root or those logs won't be collected.
+**Logging telemetry** is scoped to one logger namespace via `APPLICATIONINSIGHTS_LOGGER_NAMESPACE` (set in the chart `environment:` block) — that logger and its children. It **defaults to `uvicorn`** (the server's request/error logs), so your application's **own** logs are *not* sent to App Insights unless you override it to your app's logger root. Find that root with `grep -rn getLogger` in your service; set an empty string (`""`) to collect from the root logger (everything). Requests, dependencies and metrics are captured regardless of this setting.
+
+**Probe-endpoint noise** is filtered by default — `OTEL_PYTHON_EXCLUDED_URLS` defaults to `health,readiness,liveness`, so Kubernetes liveness/readiness probes aren't traced as `requests`. Override it to replace or extend the list (it's a full replace, so keep the defaults you still want), e.g. `OTEL_PYTHON_EXCLUDED_URLS=health,readiness,liveness,metrics`.
+
+**Also optional** (chart `environment:` block):
 - `OTEL_SERVICE_NAME` — label telemetry with the service name (otherwise it shows as `unknown_service`).
 
 ---

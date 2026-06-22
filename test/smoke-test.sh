@@ -27,8 +27,8 @@ cs='InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=ht
 out="$(docker run --rm -e APPLICATIONINSIGHTS_CONNECTION_STRING="$cs" "$IMAGE" -c 'print("APP-RAN")' 2>&1)"
 echo "$out" | grep -q '^APP-RAN$' || { echo "FAIL: app did not run with telemetry:"; echo "$out"; exit 1; }
 echo "$out" | grep -qi "$ACTIVATION" || { echo "FAIL: telemetry did not activate:"; echo "$out"; exit 1; }
-echo "$out" | grep -qi "log namespace: app" || { echo "FAIL: default logger namespace not 'app':"; echo "$out"; exit 1; }
-echo "PASS: activated (default namespace 'app'), app ran"
+echo "$out" | grep -qi "log namespace: uvicorn" || { echo "FAIL: default logger namespace not 'uvicorn':"; echo "$out"; exit 1; }
+echo "PASS: activated (default namespace 'uvicorn'), app ran"
 
 echo "== 5. File-based connection string + logger namespace =="
 csdir="$(mktemp -d)"
@@ -44,5 +44,12 @@ echo "$out" | grep -qi "$ACTIVATION" || { echo "FAIL: telemetry did not activate
 echo "$out" | grep -qF "CS=$cs" || { echo "FAIL: env var not populated from file:"; echo "$out"; exit 1; }
 echo "$out" | grep -qi "log namespace: cnp" || { echo "FAIL: logger namespace not applied:"; echo "$out"; exit 1; }
 echo "PASS: activated from file, env populated, namespace applied, app ran"
+
+echo "== 6. Probe endpoints excluded by default (overridable) =="
+out="$(docker run --rm -e APPLICATIONINSIGHTS_CONNECTION_STRING="$cs" "$IMAGE" -c 'import os; print("EXCLUDED=" + os.environ.get("OTEL_PYTHON_EXCLUDED_URLS", ""))' 2>&1)"
+echo "$out" | grep -qF "EXCLUDED=health,readiness,liveness" || { echo "FAIL: default excluded URLs not set:"; echo "$out"; exit 1; }
+out="$(docker run --rm -e APPLICATIONINSIGHTS_CONNECTION_STRING="$cs" -e OTEL_PYTHON_EXCLUDED_URLS=custom "$IMAGE" -c 'import os; print("EXCLUDED=" + os.environ.get("OTEL_PYTHON_EXCLUDED_URLS", ""))' 2>&1)"
+echo "$out" | grep -qF "EXCLUDED=custom" || { echo "FAIL: excluded URLs override not respected:"; echo "$out"; exit 1; }
+echo "PASS: probe endpoints excluded by default, override respected"
 
 echo "ALL SMOKE TESTS PASSED: $IMAGE"
